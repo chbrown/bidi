@@ -112,26 +112,20 @@
     (let [k (second this)]
       (if (keyword? k)
         k
-        (throw (ex-info (str "If a PatternSegment is represented by a vector, the second
-                               element must be the keyword associated with the pattern: "
-                             this)
-                        {})))))
+        (throw (ex-info (str "If a PatternSegment is represented by a vector, the second "
+                             "element must be the keyword associated with the pattern: " this) {})))))
   (transform-param [this] (transform-param (first this)))
   (unmatch-segment [this params]
     (let [k (second this)]
       (if-not (keyword? k)
-        (throw (ex-info (str "If a PatternSegment is represented by a vector, the second element
-                               must be the key associated with the pattern: "
-                             this)
-                        {})))
+        (throw (ex-info (str "If a PatternSegment is represented by a vector, the second "
+                             "element must be the key associated with the pattern: " this) {})))
       (if-let [v (get params k)]
         (if (matches? (first this) v)
           (encode-parameter v)
           (throw (ex-info (str "Parameter value of " v " (key " k ") "
-                               "is not compatible with the route pattern " this)
-                          {})))
-        (throw (ex-info (str "No parameter found in params for key " k)
-                        {})))))
+                               "is not compatible with the route pattern " this) {})))
+        (throw (ex-info (str "No parameter found in params for key " k) {})))))
 
   #?(:clj clojure.lang.Keyword
      :cljs cljs.core.Keyword)
@@ -142,9 +136,7 @@
   (unmatch-segment [this params]
     (if-let [v (this params)]
       (encode-parameter v)
-      (throw (ex-info (str "Cannot form URI without a value given for "
-                           this " parameter")
-                      {}))))
+      (throw (ex-info (str "Cannot form URI without a value given for " this " parameter") {}))))
 
   #?(:clj clojure.lang.Fn
      :cljs function)
@@ -168,19 +160,23 @@
               :cljs (not (js/isNaN s)))
       uuid (instance? #?(:clj java.util.UUID :cljs cljs.core.UUID) s))))
 
-;; A Route is a pair. The pair has two halves: a pattern on the left,
-;; while the right contains the result if the pattern matches.
-
 (defprotocol Pattern
+  "Left side of a Route (the other side is the result if this pattern matches)"
   (match-pattern [_ env]
     "Return a new state if this pattern matches the given state, or
     falsy otherwise. If a new state is returned it will usually have the
     rest of the path to match in the :remainder entry.")
-  (unmatch-pattern [_ m]))
+  (unmatch-pattern [_ m]
+    "Return the string corresponding to this segment of the route. For strings,
+    this is just the identity function. It will recurse where possible, and
+    return empty when the pattern contributes no content."))
 
 (defprotocol Matched
-  (resolve-handler [_ m])
-  (unresolve-handler [_ m]))
+  "Right side of a Route, to be used when the left side, the Pattern, is matched"
+  (resolve-handler [_ m]
+    "Return m extended with a :handler if any of the leaf handlers in this result match m")
+  (unresolve-handler [_ m]
+    "Generate the URL string that points to m with :handler and :params"))
 
 (defn just-path
   [path]
@@ -207,7 +203,11 @@
                                     (:remainder env)))]
     (assoc env :remainder path)))
 
-(defn succeed [handler m]
+(defn succeed
+  "When the :remainder of m is empty, indicating the path has been fully
+  consumed, return m with handler attached as :handler. This is called when
+  resolving the handler of a route's matched endpoint."
+  [handler m]
   (when (= (:remainder m) "")
     (merge (dissoc m :remainder) {:handler handler})))
 
@@ -269,7 +269,6 @@
         (-> env
             (assoc-in [:remainder] (last groups))
             (update-in [:route-params] merge params)))))
-
   (unmatch-pattern [this m]
     (apply str (map #(unmatch-segment % (:params m)) this)))
 
@@ -320,9 +319,12 @@
   #?(:cljs
      (unmatch-pattern [this s] (unmatch-pattern (first this) s))))
 
-(defn unmatch-pair [v m]
-  (when-let [r (unresolve-handler (second v) m)]
-    (str (unmatch-pattern (first v) m) r)))
+(defn unmatch-pair
+  "When a URL can be derived from the right-hand-side of the route and context m,
+  prepend it with the the URL segment corresponding to the left-hand-side pattern."
+  [route-pair m]
+  (when-let [r (unresolve-handler (second route-pair) m)]
+    (str (unmatch-pattern (first route-pair) m) r)))
 
 (extend-protocol Matched
   #?(:clj String
@@ -343,6 +345,7 @@
      :cljs cljs.core.PersistentArrayMap)
   (resolve-handler [this m] (some #(match-pair % m) this))
   (unresolve-handler [this m] (some #(unmatch-pair % m) this))
+
   #?(:cljs cljs.core.PersistentHashMap)
   #?(:cljs (resolve-handler [this m] (some #(match-pair % m) this)))
   #?(:cljs (unresolve-handler [this m] (some #(unmatch-pair % m) this)))
@@ -387,9 +390,9 @@
   (match-route* route path options))
 
 (defn path-for
-  "Given a route definition data structure, a handler and an option map, return a
-  path that would route to the handler. The map must contain the values to any
-  parameters required to create the path, and extra values are silently ignored."
+  "Given a route definition data structure, a handler, and optional params,
+  return a path that would route to the handler. The map must contain the
+  values to any parameters required to create the path."
   [route handler & {:as params}]
   (when (nil? handler)
     (throw (ex-info "Cannot form URI from a nil handler" {})))
