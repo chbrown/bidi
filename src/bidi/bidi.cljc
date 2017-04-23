@@ -21,17 +21,16 @@
 
 (defn uuid
   "Function for creating a UUID of the appropriate type for the platform.
-Note that this function should _only_ be used in route patterns as, at least
-in the case of ClojureScript, it does not validate that the input string is
-actually a valid UUID (this is handled by the route matching logic)."
+  Note that this function should _only_ be used in route patterns as, at least
+  in the case of ClojureScript, it does not validate that the input string is
+  actually a valid UUID (this is handled by the route matching logic)."
   [s]
   #?(:clj (java.util.UUID/fromString s)
      :cljs (cljs.core.UUID. s)))
 
-;; When forming paths, parameters are encoded into the URI according to
-;; the parameter value type.
-
 (defprotocol ParameterEncoding
+  "When forming paths, parameters are encoded into the URI according to
+  the parameter value type."
   (encode-parameter [_]))
 
 (extend-protocol ParameterEncoding
@@ -63,27 +62,26 @@ actually a valid UUID (this is handled by the route matching logic)."
           (when (namespace k) "/")
           (name k)))))
 
-;; A PatternSegment is part of a segmented pattern, where the pattern is
-;; given as a vector. Each segment can be of a different type, and each
-;; segment can optionally be associated with a key, thereby contributing
-;; a route parameter.
-
 (defprotocol PatternSegment
-  ;; segment-regex-group must return the regex pattern that will consume the
-  ;; segment, when matching routes.
-  (segment-regex-group [_])
-  ;; param-key, if non nil, specifies the key in the parameter map which
-  ;; holds the segment's value, returned from matching a route
-  (param-key [_])
-  ;; transform specifies a function that will be applied the value
-  ;; extracted from the URI when matching routes.
-  (transform-param [_])
-  ;; unmatch-segment generates the part of the URI (a string) represented by
-  ;; the segment, when forming URIs.
-  (unmatch-segment [_ params])
-  ;; matches? is used to check if the type or value of the parameter
-  ;; satisfies the segment qualifier when forming a URI.
-  (matches? [_ s]))
+  "A PatternSegment is part of a segmented pattern, where the pattern is
+  given as a vector. Each segment can be of a different type, and each
+  segment can optionally be associated with a key, thereby contributing
+  a route parameter."
+  (segment-regex-group [_]
+    "segment-regex-group must return the regex pattern that will consume the
+    segment, when matching routes.")
+  (param-key [_]
+    "param-key, if non nil, specifies the key in the parameter map which
+    holds the segment's value, returned from matching a route")
+  (transform-param [_]
+    "transform specifies a function that will be applied the value
+    extracted from the URI when matching routes.")
+  (unmatch-segment [_ params]
+    "unmatch-segment generates the part of the URI (a string) represented by
+    the segment, when forming URIs.")
+  (matches? [_ s]
+    "matches? is used to check if the type or value of the parameter
+    satisfies the segment qualifier when forming a URI."))
 
 (extend-protocol PatternSegment
   #?(:clj String
@@ -402,7 +400,9 @@ actually a valid UUID (this is handled by the route matching logic)."
 ;; --------------------------------------------------------------------------------
 
 (defprotocol Matches
-  (matches [_] "A protocol used in the expansion of possible matches that the pattern can match. This is used to gather all possible routes using route-seq below."))
+  (matches [_]
+    "A protocol used in the expansion of possible matches that the pattern can
+    match. This is used to gather all possible routes using route-seq below."))
 
 (extend-protocol Matches
   #?(:clj Object
@@ -458,13 +458,13 @@ actually a valid UUID (this is handled by the route matching logic)."
 ;; Protocols
 ;; --------------------------------------------------------------------------------
 
-;; RouteProvider - this protocol can be satisfied by records that provide
-;; or generate bidi routes. The reason for providing this protocol in
-;; bidi is to encourage compatibility between record implementations.
 (defprotocol RouteProvider
-  (routes [_] "Provide a bidi route structure. Returns a vector pair,
-  the first element is the pattern, the second element is the matched
-  route or routes."))
+  "This protocol can be satisfied by records that provide
+  or generate bidi routes. The reason for providing this protocol in
+  bidi is to encourage compatibility between record implementations."
+  (routes [_]
+    "Provide a bidi route structure. Returns a vector pair, the first element
+    is the pattern, the second element is the matched route or routes."))
 
 ;; --------------------------------------------------------------------------------
 ;; Utility records

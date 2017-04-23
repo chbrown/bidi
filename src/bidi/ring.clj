@@ -46,8 +46,6 @@
 
 ;; Here are some built-in ones.
 
-;; Redirect can be matched (appear on the right-hand-side of a route)
-;; and returns a handler that can redirect to the given target.
 (defrecord Redirect [status target]
   bidi/Matched
   (resolve-handler [this m]
@@ -70,14 +68,18 @@
       {:status 500
        :body "Failed to determine redirect location"})))
 
-(defn redirect [target]
+(defn redirect
+  "Wrap the matched (right-hand-side) part of a route in a handler that
+  redirects to the given target."
+  [target]
   (->Redirect 302 target))
 
-(defn redirect-after-post [target]
+(defn redirect-after-post
+  "Wrap the matched (right-hand-side) part of a route in a handler that
+  redirects to the given target."
+  [target]
   (->Redirect 303 target))
 
-;; Use this to map to paths (e.g. /static) that are expected to resolve
-;; to a Java resource, and should fail-fast otherwise (returning a 404).
 (defrecord Resources [options]
   bidi/Matched
   (resolve-handler [this m]
@@ -92,17 +94,12 @@
   (unresolve-handler [this m]
     (when (= this (:handler m)) "")))
 
-(defn resources [options]
+(defn resources
+  "Use this to map to paths (e.g. /static) that are expected to resolve
+  to a Java resource, and should fail-fast otherwise (returning a 404)."
+  [options]
   (->Resources options))
 
-;; Use this to map to resources, will return nil if resource doesn't
-;; exist, allowing other routes to be tried. Use this to try the path as
-;; a resource, but to continue if not found.  Warning: Java considers
-;; directories as resources, so this will yield a positive match on
-;; directories, including "/", which will prevent subsequent patterns
-;; being tried. The workaround is to be more specific in your
-;; patterns. For example, use /js and /css rather than just /. This
-;; problem does not affect Files (below).
 (defrecord ResourcesMaybe [options]
   bidi/Matched
   (resolve-handler [this m]
@@ -116,11 +113,18 @@
   (unresolve-handler [this m]
     (when (= this (:handler m)) "")))
 
-(defn resources-maybe [options]
+(defn resources-maybe
+  "Use this to map to resources, will return nil if resource doesn't
+  exist, allowing other routes to be tried. Use this to try the path as
+  a resource, but to continue if not found.  Warning: Java considers
+  directories as resources, so this will yield a positive match on
+  directories, including \"/\", which will prevent subsequent patterns
+  being tried. The workaround is to be more specific in your
+  patterns. For example, use /js and /css rather than just /. This
+  problem does not affect Files (below)."
+  [options]
   (->ResourcesMaybe options))
 
-;; Use this to map to files, using file-response. Options sbould include
-;; :dir, the root directory containing the files.
 (defrecord Files [options]
   bidi/Matched
   (resolve-handler [this m]
@@ -133,12 +137,12 @@
   (unresolve-handler [this m]
     (when (= this (:handler m)) "")))
 
-(defn files [options]
+(defn files
+  "Use this to map to files, using file-response. Options should include
+  :dir, the root directory containing the files."
+  [options]
   (->Files options))
 
-;; Use this to route to an existing archive.
-;; :archive should be a resource
-;; :resource-prefix (defaults to /) says where in the archive the content is
 (defrecord Archive [options]
   bidi/Matched
   (resolve-handler [this m]
@@ -158,11 +162,13 @@
   (unresolve-handler [this m]
     (when (= this (:handler m)) "")))
 
-(defn archive [options]
+(defn archive
+  "Use this to route to an existing archive.
+  :archive should be a resource
+  :resource-prefix (defaults to /) says where in the archive the content is"
+  [options]
   (->Archive options))
 
-;; WrapMiddleware can be matched (appear on the right-hand-side of a route)
-;; and returns a handler wrapped in the given middleware.
 (defrecord WrapMiddleware [matched middleware]
   bidi/Matched
   (resolve-handler [this m]
@@ -170,5 +176,8 @@
       (if (:handler r) (update-in r [:handler] middleware) r)))
   (unresolve-handler [this m] (unresolve-handler matched m))) ; pure delegation
 
-(defn wrap-middleware [matched middleware]
+(defn wrap-middleware
+  "Wrap the matched (right-hand-side) part of a route's handler
+  in the given middleware."
+  [matched middleware]
   (->WrapMiddleware matched middleware))
