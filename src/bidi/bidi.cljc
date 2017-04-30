@@ -15,7 +15,7 @@
 
 (defn url-decode
   ([string] #?(:clj (url-decode string "UTF-8")
-               :cljs (some-> string str (js/decodeURIComponent))))
+               :cljs (some-> string str js/decodeURIComponent)))
   #?(:clj ([string encoding]
            (some-> string str (java.net.URLDecoder/decode encoding)))))
 
@@ -34,8 +34,7 @@
   (encode-parameter [_]))
 
 (extend-protocol ParameterEncoding
-  ;; We don't URL encode strings, we leave the choice of whether to do so
-  ;; to the caller.
+  ;; We don't URL encode strings, we leave the choice of whether to do so to the caller.
   #?(:clj String
      :cljs string)
   (encode-parameter [s] s)
@@ -209,7 +208,7 @@
   resolving the handler of a route's matched endpoint."
   [handler m]
   (when (= (:remainder m) "")
-    (merge (dissoc m :remainder) {:handler handler})))
+    (assoc (dissoc m :remainder) :handler handler)))
 
 (extend-protocol Pattern
   #?(:clj String
@@ -250,7 +249,7 @@
                             (map segment-regex-group %)
                             ;; Form a regexes group from each
                             (map (fn [x] (str "(" x ")")) %)
-                            (reduce str %)
+                            (apply str %)
                             ;; Add the 'remainder' group
                             (str % "(.*)")
                             (re-pattern %)
